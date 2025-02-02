@@ -1,55 +1,71 @@
-// api/callback.js
-export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
-  }
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profil - Roleplay Activity</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <a href="#discord">Discord</a>
+    <a href="#rules">Pravidla</a>
+    <a href="#whitelist">Whitelist</a>
+  </header>
 
-  // Získání authorization code z URL parametrů
-  const { code } = req.query;
+  <div class="content">
+    <h1>Profil</h1>
 
-  if (!code) {
-    return res.status(400).json({ error: 'Authorization code not provided' });
-  }
+    <!-- Zobrazení údajů o uživatelském účtu -->
+    <div class="profile-info">
+      <img id="avatar" src="" alt="Avatar" width="100">
+      <h2 id="username"></h2>
+      <p>Discord Tag: <span id="discriminator"></span></p>
+    </div>
 
-  try {
-    // Vytvoření požadavku na Discord pro získání tokenu
-    const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
-      method: 'POST',
+    <!-- Informace o Whitelistu -->
+    <div class="whitelist-status">
+      <h3>Status Whitelistu:</h3>
+      <p id="whitelist-status">Načítání...</p>
+    </div>
+
+    <!-- Tlačítko pro vyplnění žádosti -->
+    <a href="whitelist-form.html" class="btn">Vyplnit žádost o Whitelist</a>
+
+    <!-- Odkaz, pokud uživatel není na správném Discord serveru -->
+    <p id="discord-check"></p>
+  </div>
+
+  <footer>
+    <p>&copy; 2025 Roleplay Activity. Všechna práva vyhrazena.</p>
+  </footer>
+
+  <script>
+    // Získání údajů z URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const username = urlParams.get('username');
+    const discriminator = urlParams.get('discriminator');
+    const avatar = urlParams.get('avatar');
+
+    // Zobrazení údajů o uživatelském účtu
+    document.getElementById('username').textContent = `${username}#${discriminator}`;
+    document.getElementById('discriminator').textContent = `#${discriminator}`;
+    document.getElementById('avatar').src = `https://cdn.discordapp.com/avatars/${urlParams.get('user_id')}/${avatar}.png`;
+
+    // Zkontrolování, jestli je uživatel na správném Discord serveru
+    fetch('https://discord.com/api/v10/users/@me/guilds', {
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Bearer ${urlParams.get('access_token')}`,
       },
-      body: new URLSearchParams({
-        client_id: process.env.DISCORD_CLIENT_ID, // Tvůj Discord client_id
-        client_secret: process.env.DISCORD_CLIENT_SECRET, // Tvůj Discord client_secret
-        code: code,
-        grant_type: 'authorization_code',
-        redirect_uri: process.env.DISCORD_REDIRECT_URI, // Tvá redirect_uri
-        scope: 'identify',
-      }),
-    });
+    })
+      .then(response => response.json())
+      .then(data => {
+        const isInServer = data.some(guild => guild.id === 'V5Cr94MMsa'); // Ověření serveru
+        if (!isInServer) {
+          document.getElementById('discord-check').innerHTML = `<a href="https://discord.gg/V5Cr94MMsa" target="_blank">Pro vyplnění formuláře, musíš být na discordu ZDE</a>`;
+        }
+      });
+  </script>
 
-    const tokenData = await tokenResponse.json();
-
-    if (tokenData.error) {
-      return res.status(400).json({ error: tokenData.error_description });
-    }
-
-    // Získání informací o uživatelském účtu z Discordu pomocí získaného access tokenu
-    const userResponse = await fetch('https://discord.com/api/v10/users/@me', {
-      headers: {
-        Authorization: `Bearer ${tokenData.access_token}`,
-      },
-    });
-
-    const userData = await userResponse.json();
-
-    // Uložit si data (například do session nebo databáze)
-    // Např. můžeš uložit userData do session, cookie nebo databáze
-
-    // Přesměrování na profilovou stránku
-    return res.redirect(`/profile?username=${userData.username}&discriminator=${userData.discriminator}&avatar=${userData.avatar}`);
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: 'Something went wrong' });
-  }
-}
+</body>
+</html>
